@@ -79,7 +79,7 @@
        <bool>true</bool>
       </property>
      </widget>
-     <widget class="QPlainTextEdit" name="textEdit">
+     <widget class="TextEdit" name="textEdit">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
         <horstretch>0</horstretch>

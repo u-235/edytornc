@@ -27,16 +27,20 @@
 #include <QCloseEvent>
 #include <QComboBox>
 #include <QDesktopServices>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QEvent>
 #include <QFileDialog>
 #include <QFileIconProvider>
 #include <QFileSystemModel>
 #include <QLabel>
 #include <QLineEdit>
+#include <QList>
 #include <QMdiSubWindow>
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QMimeData>
 #include <QModelIndex>
 #include <QMoveEvent>
 #include <QPageLayout>
@@ -57,6 +61,7 @@
 #include <QtGlobal>            // QT_VERSION QT_VERSION_CHECK
 #include <QToolButton>
 #include <QToolTip>
+#include <QUrl>
 #include <QWidget>
 
 #include <generalconfig.h>            // GeneralConfig
@@ -103,6 +108,7 @@ EdytorNc::EdytorNc(Medium *medium)
     setAttribute(Qt::WA_DeleteOnClose);
 
     setupUi(this);
+    setAcceptDrops(true);
 
     findToolBar = nullptr;
     serialToolBar = nullptr;
@@ -217,6 +223,30 @@ void EdytorNc::moveEvent(QMoveEvent *event)
     }
 
     QMainWindow::moveEvent(event);
+}
+
+void EdytorNc::dragEnterEvent(QDragEnterEvent *event)
+{
+    if (!event->mimeData()->hasUrls()) {
+        QMainWindow::dragEnterEvent(event);
+        return;
+    }
+
+    event->acceptProposedAction();
+}
+
+void EdytorNc::dropEvent(QDropEvent *event)
+{
+    if (!event->mimeData()->hasUrls()) {
+        QMainWindow::dropEvent(event);
+        return;
+    }
+
+    for (auto url : event->mimeData()->urls()) {
+        openFile(url.toString(QUrl::PreferLocalFile));
+    }
+
+    event->acceptProposedAction();
 }
 
 void EdytorNc::closeTab(int i)

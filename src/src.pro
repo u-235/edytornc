@@ -25,7 +25,8 @@ SOURCES += edytornc.cpp \
     cleanupdialog.cpp \
     swapaxesdialog.cpp \
     newfiledialog.cpp \
-    sessiondialog.cpp
+    sessiondialog.cpp \
+    textedit.cpp
 
 HEADERS += include/edytornc.h \
     highlighter.h \
@@ -37,7 +38,8 @@ HEADERS += include/edytornc.h \
     tooltips.h \
     swapaxesdialog.h \
     newfiledialog.h \
-    sessiondialog.h
+    sessiondialog.h\
+    textedit.h
 
 FORMS += i2mdialog.ui \
     feedsdialog.ui \

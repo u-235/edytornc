@@ -43,6 +43,8 @@ class QCheckBox;
 class QClipboard;
 class QCloseEvent;
 class QComboBox;
+class QDragEnterEvent;
+class QDropEvent;
 class QEvent;
 class QFileSystemModel;
 class QLabel;
@@ -80,6 +82,14 @@ public:
 
     void resizeEvent(QResizeEvent *event);
     void moveEvent(QMoveEvent *event);
+
+    /*
+     * To implement the opening of dragged files, we override the event handlers.
+     * see textedit.h and textedit.cpp
+     * see https://doc.qt.io/qt-5/dnd.html#dropping
+     */
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
 
 protected:
     static EdytorNc *SINGLETON;
