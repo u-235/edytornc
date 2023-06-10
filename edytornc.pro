@@ -5,6 +5,7 @@ SUBDIRS = 3rdparty src-common src sfs
 
 
 include(common.pri)
+include(install/install.pri)
 
 QMAKE_EXTRA_TARGETS += lupdate
 lupdate.depends = lupdateEdytornc lupdateKdiff3
