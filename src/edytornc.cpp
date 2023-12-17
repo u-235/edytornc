@@ -75,6 +75,7 @@
 
 #include "setupdialog.h"    // SetupDialog
 #include "edytornc.h"       // EdytorNc QObject QMainWindow
+#include "gcoderinfo.h"     // GCoderInfo
 #include "findinf.h"        // FindInFiles
 #include "newfiledialog.h"  // newFileDialog
 #include "mdichild.h"       // MdiChild
@@ -319,20 +320,7 @@ MdiChild *EdytorNc::newFileFromTemplate()
             child->newFile();
         }
 
-        defaultMdiWindowProperites.lastDir = QDir::currentPath();
-        defaultMdiWindowProperites.cursorPos = 0;
-        defaultMdiWindowProperites.readOnly = false;
-        //defaultMdiWindowProperites.maximized = false;
-        defaultMdiWindowProperites.geometry = QByteArray();
-        defaultMdiWindowProperites.editorToolTips = true;
-        child->setHighligthMode(MODE_AUTO);
-        child->setMdiWindowProperites(defaultMdiWindowProperites);
-
-        if (defaultMdiWindowProperites.maximized) {
-            child->showMaximized();
-        } else {
-            child->showNormal();
-        }
+        child->setDocumentInfo(GCoderInfo());
     }
 
     delete (newFileDlg);
@@ -348,22 +336,6 @@ MdiChild *EdytorNc::newFile()
 {
     MdiChild *child = createMdiChild();
     child->newFile();
-
-    defaultMdiWindowProperites.lastDir = QDir::currentPath();
-    defaultMdiWindowProperites.cursorPos = 0;
-    defaultMdiWindowProperites.readOnly = false;
-    //defaultMdiWindowProperites.maximized = false;
-    defaultMdiWindowProperites.geometry = QByteArray();
-    defaultMdiWindowProperites.editorToolTips = true;
-    child->setHighligthMode(MODE_AUTO);
-    child->setMdiWindowProperites(defaultMdiWindowProperites);
-
-    if (defaultMdiWindowProperites.maximized) {
-        child->showMaximized();
-    } else {
-        child->showNormal();
-    }
-
     return child;
 }
 
@@ -398,20 +370,7 @@ void EdytorNc::open()
             MdiChild *child = createMdiChild();
 
             if (child->loadFile(*it)) {
-                defaultMdiWindowProperites.cursorPos = 0;
-                defaultMdiWindowProperites.readOnly = defaultMdiWindowProperites.defaultReadOnly;
-                defaultMdiWindowProperites.geometry = QByteArray();
-                int highlightMode = defaultHighlightMode(QFileInfo(*it).absolutePath());
-                child->setHighligthMode(highlightMode);
-                defaultMdiWindowProperites.editorToolTips = true;
-                child->setMdiWindowProperites(defaultMdiWindowProperites);
-
-                if (defaultMdiWindowProperites.maximized) {
-                    child->showMaximized();
-                } else {
-                    child->showNormal();
-                }
-
+                child->setHighligthMode(defaultHighlightMode(*it));
                 m_recentFiles->add(*it);
             } else {
                 child->parentWidget()->close();
@@ -464,20 +423,7 @@ void EdytorNc::openExample()
             MdiChild *child = createMdiChild();
 
             if (child->loadFile(*it)) {
-                defaultMdiWindowProperites.cursorPos = 0;
-                defaultMdiWindowProperites.readOnly = defaultMdiWindowProperites.defaultReadOnly;
-                defaultMdiWindowProperites.geometry = QByteArray();
-                int highlightMode = defaultHighlightMode(QFileInfo(*it).absolutePath());
-                child->setHighligthMode(highlightMode);
-                defaultMdiWindowProperites.editorToolTips = true;
-                child->setMdiWindowProperites(defaultMdiWindowProperites);
-
-                if (defaultMdiWindowProperites.maximized) {
-                    child->showMaximized();
-                } else {
-                    child->showNormal();
-                }
-
+                child->setHighligthMode(defaultHighlightMode(*it));
                 m_recentFiles->add(*it);
             } else {
                 child->parentWidget()->close();
@@ -508,20 +454,7 @@ void EdytorNc::openFile(const QString &fileName)
         MdiChild *child = createMdiChild();
 
         if (child->loadFile(fileName)) {
-            defaultMdiWindowProperites.cursorPos = 0;
-            defaultMdiWindowProperites.readOnly = defaultMdiWindowProperites.defaultReadOnly;
-            //defaultMdiWindowProperites.maximized = false;
-            defaultMdiWindowProperites.geometry = QByteArray();
-            int highlightMode = defaultHighlightMode(child->filePath());
-            child->setHighligthMode(highlightMode);
-            defaultMdiWindowProperites.editorToolTips = true;
-            child->setMdiWindowProperites(defaultMdiWindowProperites);
-
-            if (defaultMdiWindowProperites.maximized) {
-                child->showMaximized();
-            } else {
-                child->showNormal();
-            }
+            child->setHighligthMode(defaultHighlightMode(child->filePath()));
         } else {
             child->parentWidget()->close();
         }
@@ -1382,7 +1315,6 @@ MdiChild *EdytorNc::createMdiChild()
 {
     MdiChild *child = new MdiChild(this);
     ui->mdiArea->addSubWindow(child);
-    //    child->setFileChangeMonitor(fileChangeMonitor);
 
     connect(child->textEdit(), SIGNAL(redoAvailable(bool)), redoAct, SLOT(setEnabled(bool)));
     connect(child->textEdit(), SIGNAL(undoAvailable(bool)), undoAct, SLOT(setEnabled(bool)));
@@ -1394,17 +1326,9 @@ MdiChild *EdytorNc::createMdiChild()
     connect(child, SIGNAL(addRemoveFileWatch(const QString &, bool)), this,
             SLOT(watchFile(const QString &, bool)));
 
-    //    connect(child->textEdit(), SIGNAL(copyAvailable(bool)), this, SLOT(updateMenus()));
-    //    connect(child->textEdit(), SIGNAL(redoAvailable(bool)), redoAct, SLOT(setEnabled(bool)));
-    //    connect(child->textEdit(), SIGNAL(undoAvailable(bool)), undoAct, SLOT(setEnabled(bool)));
-    //    //connect(child->textEdit(), SIGNAL(textChanged()), this, SLOT(updateMenus()));
-    //    connect(child->textEdit(), SIGNAL(cursorPositionChanged()), this, SLOT(updateMenus()));
-    //    connect(child->textEdit(), SIGNAL(modificationChanged(bool)), this, SLOT(updateStatusBar()));
-    //    connect(child, SIGNAL(message(const QString&, int)), statusBar(), SLOT(showMessage(const QString&, int)));
-
-    //connect(child->textEdit(), SIGNAL(copyAvailable(bool)), cutAct, SLOT(setEnabled(bool)));
-    //connect(child->textEdit(), SIGNAL(selectionChanged()), this, SLOT(updateMenus()));
-
+    defaultMdiWindowProperites.lastDir = QDir::currentPath();
+    child->setMdiWindowProperites(defaultMdiWindowProperites);
+    child->setHighligthMode(defaultMdiWindowProperites.defaultHighlightMode);
     return child;
 }
 
@@ -2180,12 +2104,12 @@ void EdytorNc::setActiveSubWindow(QWidget *window)
     ui->mdiArea->setActiveSubWindow(qobject_cast<QMdiSubWindow *>(window));
 }
 
-void EdytorNc::loadFile(const _editor_properites &options, bool checkAlreadyLoaded)
+void EdytorNc::loadFile(const GCoderInfo &info, bool checkAlreadyLoaded)
 {
     QFileInfo file;
 
     if (checkAlreadyLoaded) {
-        QMdiSubWindow *existing = findMdiChild(options.fileName);
+        QMdiSubWindow *existing = findMdiChild(info.filePath);
 
         if (existing) {
             ui->mdiArea->setActiveSubWindow(existing);
@@ -2193,20 +2117,13 @@ void EdytorNc::loadFile(const _editor_properites &options, bool checkAlreadyLoad
         }
     }
 
-    file.setFile(options.fileName);
+    file.setFile(info.filePath);
 
     if ((file.exists()) && (file.isReadable())) {
         MdiChild *child = createMdiChild();
-        child->newFile();
-        child->loadFile(options.fileName);
-        child->setMdiWindowProperites(options);
-        child->parentWidget()->restoreGeometry(options.geometry);
-
-        if (options.maximized) {
-            child->showMaximized();
-        } else {
-            child->showNormal();
-        }
+        child->loadFile(info.filePath);
+        child->setDocumentInfo(info);
+        updateStatusBar();
     }
 }
 
@@ -2217,13 +2134,11 @@ void EdytorNc::recentFilesChanged()
 
 void EdytorNc::fileOpenRecent(QAction *act)
 {
-    defaultMdiWindowProperites.readOnly = defaultMdiWindowProperites.defaultReadOnly;
-    defaultMdiWindowProperites.geometry = QByteArray();
-    defaultMdiWindowProperites.cursorPos = 0;
-    defaultMdiWindowProperites.editorToolTips = true;
-    defaultMdiWindowProperites.fileName = act->data().toString();
-//    m_highlightMode =  defaultHighlightMode(QFileInfo(defaultMdiWindowProperites.fileName).canonicalPath());
-    loadFile(defaultMdiWindowProperites);
+    GCoderInfo info;
+    info.filePath = act->data().toString();
+    info.highlightMode = defaultHighlightMode(QFileInfo(info.filePath).canonicalPath());
+    info.readOnly = defaultMdiWindowProperites.defaultReadOnly;
+    loadFile(info);
 }
 
 void EdytorNc::updateRecentFilesMenu(const QStringList &fileList)
@@ -2254,20 +2169,7 @@ void EdytorNc::loadFoundedFile(const QString &fileName)
         child->newFile();
         child->loadFile(fileName);
         m_recentFiles->add(fileName);
-        //defaultMdiWindowProperites.maximized = false;
-        defaultMdiWindowProperites.cursorPos = 0;
-        defaultMdiWindowProperites.readOnly = defaultMdiWindowProperites.defaultReadOnly;
-        defaultMdiWindowProperites.geometry = QByteArray();
-        int highlightMode = defaultHighlightMode(child->filePath());
-        child->setHighligthMode(highlightMode);
-        defaultMdiWindowProperites.editorToolTips = true;
-        child->setMdiWindowProperites(defaultMdiWindowProperites);
-
-        if (defaultMdiWindowProperites.maximized) {
-            child->showMaximized();
-        } else {
-            child->showNormal();
-        }
+        child->setHighligthMode(defaultHighlightMode(child->filePath()));
     }
 }
 
@@ -2960,14 +2862,14 @@ void EdytorNc::projectTreeViewDoubleClicked(const QModelIndex &index)
 
     if ((file.exists()) && (file.isReadable())) {
         if (defaultMdiWindowProperites.extensions.contains("*." + file.suffix())) {
-            defaultMdiWindowProperites.fileName = file.absoluteFilePath();
-            defaultMdiWindowProperites.readOnly = defaultMdiWindowProperites.defaultReadOnly;
-            defaultMdiWindowProperites.geometry = QByteArray();
-            defaultMdiWindowProperites.cursorPos = 0;
+            GCoderInfo info;
+            info.filePath = file.canonicalFilePath();
+            info.readOnly = defaultMdiWindowProperites.defaultReadOnly;
+            info.geometry = QByteArray();
+            info.cursorPos = 0;
+            info.highlightMode =  defaultHighlightMode(QFileInfo(info.filePath).canonicalPath());
             defaultMdiWindowProperites.editorToolTips = true;
-            //m_highlightMode =  defaultHighlightMode(QFileInfo(
-            //            defaultMdiWindowProperites.fileName).canonicalPath());
-            loadFile(defaultMdiWindowProperites);
+            loadFile(info);
         } else {
             QDesktopServices::openUrl(QUrl("file:///" + file.absoluteFilePath(), QUrl::TolerantMode));
         }
@@ -3002,14 +2904,14 @@ void EdytorNc::fileTreeViewDoubleClicked(const QModelIndex &index)
 
             fileTreeViewChangeRootDir(path);
         } else if (defaultMdiWindowProperites.extensions.contains("*." + file.suffix())) {
-            defaultMdiWindowProperites.fileName = file.absoluteFilePath();
-            defaultMdiWindowProperites.readOnly = defaultMdiWindowProperites.defaultReadOnly;
-            defaultMdiWindowProperites.geometry = QByteArray();
-            defaultMdiWindowProperites.cursorPos = 0;
+            GCoderInfo info;
+            info.filePath = file.absoluteFilePath();
+            info.readOnly = defaultMdiWindowProperites.defaultReadOnly;
+            info.geometry = QByteArray();
+            info.cursorPos = 0;
             defaultMdiWindowProperites.editorToolTips = true;
-            //m_highlightMode =  defaultHighlightMode(QFileInfo(
-            //            defaultMdiWindowProperites.fileName).canonicalPath());
-            loadFile(defaultMdiWindowProperites);
+            info.highlightMode =  defaultHighlightMode(QFileInfo(info.filePath).canonicalPath());
+            loadFile(info);
         } else {
             QDesktopServices::openUrl(QUrl("file:///" + file.absoluteFilePath(), QUrl::TolerantMode));
         }
@@ -3466,16 +3368,16 @@ void EdytorNc::loadSession(const QString &name)
         settings.setArrayIndex(i);
         defaultMdiWindowProperites.lastDir = QDir::currentPath();
 
-        defaultMdiWindowProperites.fileName = settings.value("OpenedFile").toString();
+        GCoderInfo info;
+        info.filePath = settings.value("OpenedFile").toString();
 
-        if (!defaultMdiWindowProperites.fileName.isEmpty()) {
-            defaultMdiWindowProperites.cursorPos = settings.value("Cursor", 1).toInt();
-            defaultMdiWindowProperites.readOnly = settings.value("ReadOnly", false).toBool();
-            defaultMdiWindowProperites.geometry = settings.value("Geometry", QByteArray()).toByteArray();
-//            m_highlightMode = settings.value("HighlightMode",
-//                    MODE_AUTO).toInt();
-            defaultMdiWindowProperites.maximized = settings.value("MaximizedMdi", true).toBool();
-            loadFile(defaultMdiWindowProperites, false);
+        if (!info.filePath.isEmpty()) {
+            info.cursorPos = settings.value("Cursor", 1).toInt();
+            info.readOnly = settings.value("ReadOnly", false).toBool();
+            info.geometry = settings.value("Geometry", QByteArray()).toByteArray();
+            info.highlightMode = settings.value("HighlightMode", MODE_AUTO).toInt();
+            info.maximized = settings.value("MaximizedMdi", true).toBool();
+            loadFile(info, false);
         }
     }
 

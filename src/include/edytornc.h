@@ -59,6 +59,7 @@ class QToolButton;
 class QWidget;
 
 class CommApp;
+struct GCoderInfo;
 class FindInFiles;
 class KDiff3App;
 class MdiChild;
@@ -137,7 +138,7 @@ private slots:
     void updateWindowMenu();
     MdiChild *createMdiChild();
     void setActiveSubWindow(QWidget *window);
-    void loadFile(const _editor_properites &options, bool checkAlreadyLoaded = true);
+    void loadFile(const GCoderInfo &options, bool checkAlreadyLoaded = true);
     void recentFilesChanged();
     void fileOpenRecent(QAction *act);
     void updateRecentFilesMenu(const QStringList &fileList);
