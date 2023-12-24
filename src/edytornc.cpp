@@ -80,6 +80,7 @@
 #include "newfiledialog.h"  // newFileDialog
 #include "mdichild.h"       // MdiChild
 #include "recentfiles.h"    // RecentFiles
+#include "sessionmanager.h" // SessionManager
 #include "sessiondialog.h"  // sessionDialog
 #include "tooltips.h"       // writeTooltipFile()
 #include "ui_edytornc.h"
@@ -149,6 +150,12 @@ EdytorNc::EdytorNc(Medium *medium)
     connect(ui->hideButton, SIGNAL(clicked()), this, SLOT(hidePanel()));
 
     currentProjectModified = false;
+
+    m_sessionManager = new SessionManager(this);
+    connect(m_sessionManager, SIGNAL(sessionListChanged(QStringList)), this, SLOT(updateSessionMenus(QStringList)));
+    connect(m_sessionManager, SIGNAL(beforeCurrentSessionChanged()), this, SLOT(beforeCurrentSessionChanged()));
+    connect(m_sessionManager, SIGNAL(currentSessionChanged()), this, SLOT(currentSessionChanged()));
+    connect(m_sessionManager, SIGNAL(saveRequest()), this, SLOT(sessionsChanged()));
 
     m_recentFiles = new RecentFiles(this);
     connect(m_recentFiles, SIGNAL(fileListChanged(QStringList)), this, SLOT(updateRecentFilesMenu(QStringList)));
@@ -1398,7 +1405,7 @@ void EdytorNc::createActions()
 
     sessionMgrAct = new QAction(tr("Session manager..."), this);
     sessionMgrAct->setToolTip(tr("Sessions manager"));
-    connect(sessionMgrAct, SIGNAL(triggered()), this, SLOT(sessionMgr()));
+    connect(sessionMgrAct, SIGNAL(triggered()), this, SLOT(showSessionDialog()));
 
 
     undoAct = new QAction(QIcon(":/images/undo.png"), tr("&Undo"), this);
@@ -1931,22 +1938,11 @@ void EdytorNc::readSettings()
             0xFFFFFF).toInt();
     settings.endGroup();
 
-    settings.beginGroup("Sessions");
-    sessionList = settings.value("SessionList", (QStringList(tr("default")))).toStringList();
-
-    if (settings.value("RestoreLastSession", false).toBool()) {
-        currentSession = settings.value("CurrentSession", tr("default")).toString();
-    } else {
-        currentSession = tr("default");
-    }
-
-    settings.endGroup();
+    m_sessionManager->load(&settings);
 
     if (!defaultMdiWindowProperites.startEmpty) {
-        loadSession(currentSession);
+        openFilesFromSession();
     }
-
-    updateSessionMenus();
 
     ui->fileTreeView->header()->restoreState(settings.value("FileTreeViewState",
                                          QByteArray()).toByteArray());
@@ -2063,13 +2059,8 @@ void EdytorNc::writeSettings()
     //cleanup old settings
     settings.remove("LastDoc");
 
-    settings.beginGroup("Sessions");
-    settings.setValue("SessionList", sessionList);
-    settings.setValue("CurrentSession", currentSession);
-    settings.endGroup();
-
     if (!defaultMdiWindowProperites.startEmpty) {
-        saveSession(currentSession);
+        storeFileInfoInSession();
     }
 }
 
@@ -3299,123 +3290,72 @@ bool EdytorNc::event(QEvent *event)
     return QWidget::event(event);
 }
 
-void EdytorNc::updateSessionMenus()
+void EdytorNc::updateSessionMenus(const QStringList &sessionList)
 {
     sessionsMenu->clear();
 
+    // TODO memory leack?
     QActionGroup *actionGroup = new QActionGroup(sessionsMenu);
     actionGroup->setExclusive(true);
 
-    QStringList::const_iterator constIterator;
+    bool checked = true;
 
-    for (constIterator = sessionList.constBegin(); constIterator != sessionList.constEnd();
-            ++constIterator) {
-        QString name = (*constIterator).toLocal8Bit().constData();
+    for (const QString &name : sessionList) {
         QAction *action = actionGroup->addAction(name);
         action->setCheckable(true);
-        action->setChecked(name == currentSession);
+        action->setChecked(checked);
+        checked = false;
     }
 
     sessionsMenu->addActions(actionGroup->actions());
 }
 
+void EdytorNc::sessionsChanged()
+{
+    m_sessionManager->save(Medium::instance().settings());
+}
+
 void EdytorNc::changeSession(QAction *action)
 {
-    QString name = action->text();
+    m_sessionManager->setCurrentSession(action->text());
+}
 
-    if (currentSession == name) {
-        return;
-    }
+void EdytorNc::beforeCurrentSessionChanged()
+{
+    storeFileInfoInSession();
+}
 
-    saveSession(currentSession);
+void EdytorNc::currentSessionChanged()
+{
     ui->mdiArea->closeAllSubWindows();
-
-    action->setChecked(true);
-    loadSession(name);
+    openFilesFromSession();
+    statusBar()->showMessage(tr("Session %1 loaded").arg(m_sessionManager->currentSession()), 5000);
 }
 
-void EdytorNc::loadSession(const QString &name)
+void EdytorNc::openFilesFromSession()
 {
-    QSettings &settings = *Medium::instance().settings();
-    settings.beginGroup("Sessions");
-
-    int max = settings.beginReadArray(name);
-
-    for (int i = 0; i < max; ++i) {
-        settings.setArrayIndex(i);
-        defaultMdiWindowProperites.lastDir = QDir::currentPath();
-
-        GCoderInfo info;
-        info.filePath = settings.value("OpenedFile").toString();
-
-        if (!info.filePath.isEmpty()) {
-            info.cursorPos = settings.value("Cursor", 1).toInt();
-            info.readOnly = settings.value("ReadOnly", false).toBool();
-            info.geometry = settings.value("Geometry", QByteArray()).toByteArray();
-            info.highlightMode = settings.value("HighlightMode", MODE_AUTO).toInt();
-            info.maximized = settings.value("MaximizedMdi", true).toBool();
-            loadFile(info, false);
-        }
+    for (const GCoderInfo &info : m_sessionManager->documentInfoList()) {
+        loadFile(info, false);
     }
-
-    settings.endArray();
-    settings.endGroup();
-
-    currentSession = name;
-    statusBar()->showMessage(tr("Session %1 loaded").arg(name), 5000);
 }
 
-void EdytorNc::saveSession(const QString &name)
+void EdytorNc::storeFileInfoInSession()
 {
-    QSettings &settings = *Medium::instance().settings();
-    settings.beginGroup("Sessions");
+    QList<GCoderInfo> infoList;
 
-    settings.remove(name);
-
-    settings.beginWriteArray(name);
-    int i = 0;
-
-    foreach (const QMdiSubWindow *window, ui->mdiArea->subWindowList(QMdiArea::StackingOrder)) {
+    for (const QMdiSubWindow *window : ui->mdiArea->subWindowList(QMdiArea::StackingOrder)) {
         MdiChild *mdiChild = qobject_cast<MdiChild *>(window->widget());
-        _editor_properites Opt = mdiChild->getMdiWindowProperites();
-
-        settings.setArrayIndex(i);
-        settings.setValue("OpenedFile", Opt.fileName);
-        settings.setValue("Cursor", Opt.cursorPos);
-        settings.setValue("ReadOnly", Opt.readOnly);
-        settings.setValue("Geometry", mdiChild->parentWidget()->saveGeometry());
-//        settings.setValue("HighlightMode", m_highlightMode);
-        bool maximized = mdiChild->parentWidget()->isMaximized();
-        settings.setValue("MaximizedMdi", maximized);
-
-        i++;
+        GCoderInfo info = mdiChild->documentInfo();
+        infoList.append(info);
     }
 
-    settings.endArray();
-    settings.endGroup();
+    m_sessionManager->setDocumentInfoList(infoList);
 }
 
-void EdytorNc::sessionMgr()
+void EdytorNc::showSessionDialog()
 {
-    SessionDialog *sesDialog = new SessionDialog(this);
-    sesDialog->setSessionList(sessionList);
-    sesDialog->setSelectedSession(currentSession);
-
-    sesDialog->exec();
-
-    sessionList = sesDialog->sessionList();
-    QString name = sesDialog->selectedSession();
-
-    if (name != currentSession) {
-        saveSession(currentSession);
-        ui->mdiArea->closeAllSubWindows();
-        loadSession(name);
-    }
-
-    updateSessionMenus();
-
-
-    delete (sesDialog);
+    SessionDialog sesDialog(this, m_sessionManager);
+    sesDialog.exec();
 }
 
 void EdytorNc::savePrinterSettings(QPrinter *printer)
