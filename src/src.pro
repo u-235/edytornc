@@ -26,6 +26,7 @@ HEADERS += \
 
 HEADERS += \
     findinf.h \
+    gcoderinfo.h \
     highlighter.h \
     newfiledialog.h \
     recentfiles.h \
@@ -36,6 +37,7 @@ HEADERS += \
 SOURCES += \
     edytornc.cpp \
     findinf.cpp \
+    gcoderinfo.cpp \
     highlighter.cpp \
     main.cpp \
     mdichild.cpp \
