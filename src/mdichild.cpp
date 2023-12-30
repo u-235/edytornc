@@ -71,6 +71,7 @@
 #include <utils/expressionparser.h>
 #include <utils/removezeros.h>      // Utils::removeZeros()
 
+#include "gcoderinfo.h"        // GCoderInfo
 #include "highlighter.h"       // Highlighter
 #include "mdichild.h"          // MdiChild QObject QWidget
 #include "ui_mdichildform.h"
@@ -103,6 +104,7 @@ MdiChild::MdiChild(QWidget *parent, Qt::WindowFlags f) : QWidget(parent, f)
     ui->textEdit->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(ui->textEdit, SIGNAL(customContextMenuRequested(const QPoint &)),
             this, SLOT(showContextMenu(const QPoint &)));
+    connect(ui->textEdit, SIGNAL(cursorPositionChanged()), this, SLOT(highlightCurrentLine()));
 }
 
 MdiChild::~MdiChild()
@@ -529,27 +531,46 @@ QString MdiChild::fileName()
     return QFileInfo(curFile).fileName();
 }
 
+GCoderInfo MdiChild::documentInfo() const
+{
+    GCoderInfo info;
+    info.cursorPos = ui->textEdit->textCursor().position();
+    info.filePath = curFile;
+    info.geometry = parentWidget()->saveGeometry();
+    info.highlightMode = highligthMode();
+    info.maximized = isMaximized();
+    info.readOnly = isReadOnly();
+    return info;
+}
+
+void MdiChild::setDocumentInfo(const GCoderInfo &info)
+{
+    QTextCursor cursor = ui->textEdit->textCursor();
+    cursor.setPosition(info.cursorPos);
+    ui->textEdit->setTextCursor(cursor);
+    //curFile = info.filePath;
+    setHighligthMode(info.highlightMode);
+    setReadOnly(info.readOnly);
+
+    if (!info.geometry.isEmpty()) {
+        parentWidget()->restoreGeometry(info.geometry);
+    }
+
+    if (info.maximized) {
+        showMaximized();
+    } else {
+        showNormal();
+    }
+}
+
 _editor_properites MdiChild::getMdiWindowProperites()
 {
-    mdiWindowProperites.isRedo = ui->textEdit->document()->isRedoAvailable();
-    mdiWindowProperites.isUndo = ui->textEdit->document()->isUndoAvailable();
-    mdiWindowProperites.ins = ui->textEdit->overwriteMode();
-    mdiWindowProperites.modified = ui->textEdit->document()->isModified();
-    mdiWindowProperites.readOnly = ui->textEdit->isReadOnly();
-    mdiWindowProperites.isSel = ui->textEdit->textCursor().hasSelection();
-    mdiWindowProperites.cursorPos = ui->textEdit->textCursor().position(); //textCursor().blockNumber();
-    mdiWindowProperites.geometry = parentWidget()->saveGeometry();
-
-    mdiWindowProperites.fileName = curFile;
     return (mdiWindowProperites);
 }
 
 void MdiChild::setMdiWindowProperites(_editor_properites opt)
 {
-    disconnect(ui->textEdit, SIGNAL(cursorPositionChanged()), this, SLOT(highlightCurrentLine()));
-
     mdiWindowProperites = opt;
-    ui->textEdit->setReadOnly(mdiWindowProperites.readOnly);
     setFont(QFont(mdiWindowProperites.fontName, mdiWindowProperites.fontSize, QFont::Normal));
 
     QPalette pal;
@@ -577,13 +598,6 @@ void MdiChild::setMdiWindowProperites(_editor_properites opt)
 
         highlighter = nullptr;
     }
-
-    QTextCursor cursor = ui->textEdit->textCursor();
-    cursor.setPosition(mdiWindowProperites.cursorPos);
-    ui->textEdit->setTextCursor(cursor);
-    ui->textEdit->centerCursor();
-    connect(ui->textEdit, SIGNAL(cursorPositionChanged()), this, SLOT(highlightCurrentLine()));
-    updateWindowTitle();
 }
 
 bool MdiChild::eventFilter(QObject *obj, QEvent *ev)
@@ -1360,7 +1374,7 @@ void MdiChild::setHighligthMode(int mod)
     detectHighligthMode();
 }
 
-int MdiChild::highligthMode()
+int MdiChild::highligthMode() const
 {
     return m_highlightMode;
 }
@@ -1958,9 +1972,14 @@ void MdiChild::setModified(bool mod)
     ui->textEdit->document()->setModified(mod);
 }
 
-bool MdiChild::isReadOnly()
+bool MdiChild::isReadOnly() const
 {
     return ui->textEdit->isReadOnly();
+}
+
+void MdiChild::setReadOnly(bool editable)
+{
+    ui->textEdit->setReadOnly(editable);
 }
 
 bool MdiChild::hasSelection()

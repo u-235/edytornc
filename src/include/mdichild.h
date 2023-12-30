@@ -39,6 +39,7 @@ class QLineEdit;
 class QPlainTextEdit;
 class QPrinter;
 
+struct GCoderInfo;
 class Highlighter;
 
 namespace Ui {
@@ -65,6 +66,8 @@ public:
     bool saveAs();
     bool saveFile(const QString &fileName);
     QString currentFile();  //filename with full path
+    GCoderInfo documentInfo() const;
+    void setDocumentInfo(const GCoderInfo &info);
     _editor_properites getMdiWindowProperites();
     void setMdiWindowProperites(_editor_properites opt);
     void highlightFindText(const QString& searchString,
@@ -75,7 +78,7 @@ public:
     QString filePath();
     QString fileName();
     void setHighligthMode(int mod);
-    int highligthMode();
+    int highligthMode() const;
     void doDiff();
     QString currentFileInfo(); // Text from first comment in CNC program
     QString guessFileName();
@@ -90,7 +93,8 @@ public:
     void filePrintPreview();
     bool isModified();
     void setModified(bool mod = false);
-    bool isReadOnly();
+    bool isReadOnly() const;
+    void setReadOnly(bool editable);
     bool hasSelection();
     bool isUndoAvailable();
     bool isRedoAvailable();

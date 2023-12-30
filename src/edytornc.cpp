@@ -853,9 +853,6 @@ void EdytorNc::selAll()
 
 void EdytorNc::config()
 {
-    _editor_properites opt;
-    MdiChild *mdiChild;
-
     SetupDialog *setUpDialog = new SetupDialog(this, &defaultMdiWindowProperites);
 
     if (setUpDialog->exec() == QDialog::Accepted) {
@@ -876,33 +873,14 @@ void EdytorNc::config()
         }
 
         foreach (const QMdiSubWindow *window, ui->mdiArea->subWindowList(QMdiArea::StackingOrder)) {
-            mdiChild = qobject_cast<MdiChild *>(window->widget());
-            opt = mdiChild->getMdiWindowProperites();
-
-            opt.fontName = defaultMdiWindowProperites.fontName;
-            opt.fontSize = defaultMdiWindowProperites.fontSize;
-            opt.syntaxH = defaultMdiWindowProperites.syntaxH;
-            opt.hColors = defaultMdiWindowProperites.hColors;
-            opt.intCapsLock = defaultMdiWindowProperites.intCapsLock;
-            opt.lineColor = defaultMdiWindowProperites.lineColor;
-            opt.underlineColor = defaultMdiWindowProperites.underlineColor;
-            opt.underlineChanges = defaultMdiWindowProperites.underlineChanges;
-            opt.clearUnderlineHistory = defaultMdiWindowProperites.clearUnderlineHistory;
-            opt.clearUndoHistory = defaultMdiWindowProperites.clearUndoHistory;
-            opt.editorToolTips = defaultMdiWindowProperites.editorToolTips;
-            opt.windowMode = defaultMdiWindowProperites.windowMode;
-            opt.readOnly = defaultMdiWindowProperites.defaultReadOnly;
-            opt.changeDateInComment = defaultMdiWindowProperites.changeDateInComment;
-
-            opt.saveExtension = defaultMdiWindowProperites.saveExtension;
-            opt.saveDirectory = defaultMdiWindowProperites.saveDirectory;
-            opt.extensions = defaultMdiWindowProperites.extensions;
+            MdiChild *mdiChild = qobject_cast<MdiChild *>(window->widget());
 
             if (dirModel != nullptr) {
                 dirModel->setNameFilters(defaultMdiWindowProperites.extensions);
             }
 
-            mdiChild->setMdiWindowProperites(opt);
+            mdiChild->setReadOnly(defaultMdiWindowProperites.defaultReadOnly);
+            mdiChild->setMdiWindowProperites(defaultMdiWindowProperites);
         }
     }
 
@@ -1172,14 +1150,9 @@ void EdytorNc::activeWindowChanged(QMdiSubWindow *window)
     Q_UNUSED(window);
     MdiChild *mdiChild;
 
-    if (ui->mdiArea->subWindowList().count() <= 1) {
-        defaultMdiWindowProperites.maximized = true;
-    }
-
     mdiChild = activeMdiChild();
 
     if (mdiChild) {
-        defaultMdiWindowProperites.maximized = mdiChild->parentWidget()->isMaximized();
         statusBar()->showMessage(mdiChild->currentFile(), 9000);
     }
 
