@@ -31,6 +31,7 @@ HEADERS += \
     newfiledialog.h \
     recentfiles.h \
     sessiondialog.h \
+    sessionnamedialog.h \
     setupdialog.h \
     tooltips.h
 
@@ -44,6 +45,7 @@ SOURCES += \
     newfiledialog.cpp \
     recentfiles.cpp \
     sessiondialog.cpp \
+    sessionnamedialog.cpp \
     setupdialog.cpp \
     src/utils/expressionparser.cpp \
     src/utils/removezeros.cpp
