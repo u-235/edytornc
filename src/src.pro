@@ -53,8 +53,8 @@ FORMS += \
     findinfilesdialog.ui \
     mdichildform.ui \
     newfiledialog.ui \
-    newsessiondialog.ui \
     sessiondialog.ui \
+    sessionnamedialog.ui \
     setupdialog.ui
 
 
