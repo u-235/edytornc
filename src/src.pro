@@ -16,6 +16,8 @@ INCLUDEPATH += include
 
 HEADERS += \
     include/edytornc.h \
+    include/gcoderstyle.h \
+    include/gcoderwidgetproperties.h \
     include/mdichild.h \
     include/utils/expressionparser.h \
     include/utils/removezeros.h
@@ -28,6 +30,7 @@ HEADERS += \
     findinf.h \
     gcoderinfo.h \
     highlighter.h \
+    highlightmode.h \
     newfiledialog.h \
     recentfiles.h \
     sessiondialog.h \
