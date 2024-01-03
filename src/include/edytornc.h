@@ -32,7 +32,8 @@
 #include <QToolBar>
 #include <QMainWindow>
 
-#include <commoninc.h>
+#include <gcoderstyle.h>
+#include <gcoderwidgetproperties.h>
 
 class QAction;
 class QCheckBox;
@@ -242,7 +243,12 @@ private:
 
     SessionManager *m_sessionManager;
 
-    _editor_properites defaultMdiWindowProperites;
+    GCoderWidgetProperties defaultMdiWindowProperites;
+    GCoderStyle m_codeStyle;
+    QString m_calcBinary;
+    bool m_defaultReadOnly;
+    bool m_startEmpty;
+    bool m_disableFileChangeMonitor;
     FindInFiles *findFiles;
 
     bool panelHidden;

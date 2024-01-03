@@ -77,6 +77,7 @@
 #include "edytornc.h"       // EdytorNc QObject QMainWindow
 #include "gcoderinfo.h"     // GCoderInfo
 #include "findinf.h"        // FindInFiles
+#include "highlightmode.h"
 #include "newfiledialog.h"  // newFileDialog
 #include "mdichild.h"       // MdiChild
 #include "recentfiles.h"    // RecentFiles
@@ -390,7 +391,7 @@ void EdytorNc::openFile(const QString &fileName)
 {
     GCoderInfo info;
     info.filePath = fileName;
-    info.readOnly = defaultMdiWindowProperites.defaultReadOnly;
+    info.readOnly = m_defaultReadOnly;
     info.highlightMode = defaultHighlightMode(QFileInfo(fileName).absolutePath());
     loadFile(info, true);
 }
@@ -613,7 +614,7 @@ void EdytorNc::findInFl()
         findFiles = new FindInFiles(ui->splitter);
 
         if (defaultMdiWindowProperites.syntaxH) {
-            findFiles->setHighlightColors(defaultMdiWindowProperites.hColors);
+            findFiles->setHighlightColors(m_codeStyle.hColors);
         }
 
         if (activeMdiChild()) {
@@ -799,10 +800,23 @@ void EdytorNc::selAll()
 
 void EdytorNc::config()
 {
-    SetupDialog *setUpDialog = new SetupDialog(this, &defaultMdiWindowProperites);
+    AppConfig config;
+    config.editorProperties = defaultMdiWindowProperites;
+    config.codeStyle = m_codeStyle;
+    config.calcBinary = m_calcBinary;
+    config.defaultReadOnly = m_defaultReadOnly;
+    config.disableFileChangeMonitor = m_disableFileChangeMonitor;
+    config.startEmpty = m_startEmpty;
+    SetupDialog *setUpDialog = new SetupDialog(this, &config);
 
     if (setUpDialog->exec() == QDialog::Accepted) {
-        defaultMdiWindowProperites = setUpDialog->getSettings();
+        config = setUpDialog->getSettings();
+        defaultMdiWindowProperites = config.editorProperties;
+        m_codeStyle = config.codeStyle;
+        m_calcBinary = config.calcBinary;
+        m_defaultReadOnly = config.defaultReadOnly;
+        m_disableFileChangeMonitor = config.disableFileChangeMonitor;
+        m_startEmpty = config.startEmpty;
 
         if (defaultMdiWindowProperites.windowMode & TABBED_MODE) {
             ui->mdiArea->setViewMode(QMdiArea::TabbedView);
@@ -825,8 +839,9 @@ void EdytorNc::config()
                 dirModel->setNameFilters(defaultMdiWindowProperites.extensions);
             }
 
-            mdiChild->setReadOnly(defaultMdiWindowProperites.defaultReadOnly);
+            mdiChild->setReadOnly(m_defaultReadOnly);
             mdiChild->setMdiWindowProperites(defaultMdiWindowProperites);
+            mdiChild->setCodeStyle(m_codeStyle);
         }
     }
 
@@ -1031,7 +1046,7 @@ void EdytorNc::doDiff()
 
 void EdytorNc::doCalc()
 {
-    if (!QFile::exists(defaultMdiWindowProperites.calcBinary)) {
+    if (!QFile::exists(m_calcBinary)) {
         QMessageBox::information(this, tr("Information"),
                                  tr("Set correct calculator program name in configuration dialog."));
         return;
@@ -1052,7 +1067,7 @@ void EdytorNc::doCalc()
 #endif
 
     if (isNotRun) {
-        proc->start(defaultMdiWindowProperites.calcBinary, QStringList());
+        proc->start(m_calcBinary, QStringList());
     }
 }
 
@@ -1069,7 +1084,7 @@ void EdytorNc::paste()
         if (defaultMdiWindowProperites.underlineChanges) {
             QTextCharFormat format = activeMdiChild()->textEdit()->currentCharFormat();
             format.setUnderlineStyle(QTextCharFormat::DotLine);
-            format.setUnderlineColor(QColor(defaultMdiWindowProperites.underlineColor));
+            format.setUnderlineColor(QColor(m_codeStyle.underlineColor));
             activeMdiChild()->textEdit()->setCurrentCharFormat(format);
         }
 
@@ -1341,6 +1356,7 @@ MdiChild *EdytorNc::createMdiChild()
 
     defaultMdiWindowProperites.lastDir = QDir::currentPath();
     child->setMdiWindowProperites(defaultMdiWindowProperites);
+    child->setCodeStyle(m_codeStyle);
     child->setHighligthMode(defaultMdiWindowProperites.defaultHighlightMode);
     return child;
 }
@@ -1850,10 +1866,10 @@ void EdytorNc::readSettings()
 
     restoreState(state);
 
-    defaultMdiWindowProperites.disableFileChangeMonitor = settings.value("DisableFileChangeMonitor",
+    m_disableFileChangeMonitor = settings.value("DisableFileChangeMonitor",
             false).toBool();
 
-    if (defaultMdiWindowProperites.disableFileChangeMonitor) {
+    if (m_disableFileChangeMonitor) {
         fileChangeMonitor.clear();
     } else {
         fileChangeMonitor = new QFileSystemWatcher(this);
@@ -1870,8 +1886,8 @@ void EdytorNc::readSettings()
     defaultMdiWindowProperites.saveDirectory = settings.value("DefaultSaveDirectory",
             QDir::homePath()).toString();
 
-    defaultMdiWindowProperites.fontName = settings.value("FontName", "Courier").toString();
-    defaultMdiWindowProperites.fontSize = settings.value("FontSize", 12).toInt();
+    m_codeStyle.fontName = settings.value("FontName", "Courier").toString();
+    m_codeStyle.fontSize = settings.value("FontSize", 12).toInt();
     defaultMdiWindowProperites.intCapsLock = settings.value("IntCapsLock", true).toBool();
     defaultMdiWindowProperites.underlineChanges = settings.value("UnderlineChanges", true).toBool();
     defaultMdiWindowProperites.windowMode = settings.value("WindowMode", 0x0E).toInt();
@@ -1879,12 +1895,12 @@ void EdytorNc::readSettings()
     defaultMdiWindowProperites.clearUnderlineHistory = settings.value("ClearUnderline",
             false).toBool();
     defaultMdiWindowProperites.editorToolTips = settings.value("EditorToolTips", true).toBool();
-    defaultMdiWindowProperites.startEmpty = settings.value("StartEmpty", false).toBool();
+    m_startEmpty = settings.value("StartEmpty", false).toBool();
 
-    defaultMdiWindowProperites.lineColor = settings.value("LineColor", 0xFEFFB6).toInt();
-    defaultMdiWindowProperites.underlineColor = settings.value("UnderlineColor", 0x00FF00).toInt();
+    m_codeStyle.lineColor = settings.value("LineColor", 0xFEFFB6).toInt();
+    m_codeStyle.underlineColor = settings.value("UnderlineColor", 0x00FF00).toInt();
 
-    defaultMdiWindowProperites.defaultReadOnly = settings.value("ViewerMode", false).toBool();
+    m_defaultReadOnly = settings.value("ViewerMode", false).toBool();
     defaultMdiWindowProperites.defaultHighlightMode = settings.value("DefaultHighlightMode",
             MODE_AUTO).toInt();
 
@@ -1896,15 +1912,14 @@ void EdytorNc::readSettings()
     fileDialogState = settings.value("FileDialogState", QByteArray()).toByteArray();
 
 #ifdef Q_OS_LINUX
-    defaultMdiWindowProperites.calcBinary = "kcalc";
+    m_calcBinary = "kcalc";
 #endif
 
 #ifdef Q_OS_WIN32
-    defaultMdiWindowProperites.calcBinary = "calc.exe";
+    m_calcBinary = "calc.exe";
 #endif
 
-    defaultMdiWindowProperites.calcBinary = settings.value("CalcBinary",
-                                            defaultMdiWindowProperites.calcBinary).toString();
+    m_calcBinary = settings.value("CalcBinary", m_calcBinary).toString();
 
     m_recentFiles->load(&settings);
 
@@ -1913,34 +1928,34 @@ void EdytorNc::readSettings()
     settings.beginGroup("Highlight");
     defaultMdiWindowProperites.syntaxH = settings.value("HighlightOn", true).toBool();
 
-    defaultMdiWindowProperites.hColors.commentColor = settings.value("CommentColor",
+    m_codeStyle.hColors.commentColor = settings.value("CommentColor",
             0xde0020).toInt();
-    defaultMdiWindowProperites.hColors.gColor = settings.value("GColor", 0x1600ee).toInt();
-    defaultMdiWindowProperites.hColors.mColor = settings.value("MColor", 0x80007d).toInt();
-    defaultMdiWindowProperites.hColors.nColor = settings.value("NColor", 0x808080).toInt();
-    defaultMdiWindowProperites.hColors.lColor = settings.value("LColor", 0x535b5f).toInt();
-    defaultMdiWindowProperites.hColors.fsColor = settings.value("FsColor", 0x516600).toInt();
-    defaultMdiWindowProperites.hColors.dhtColor = settings.value("DhtColor", 0x660033).toInt();
-    defaultMdiWindowProperites.hColors.rColor = settings.value("RColor", 0x24576f).toInt();
-    defaultMdiWindowProperites.hColors.macroColor = settings.value("MacroColor", 0x000080).toInt();
-    defaultMdiWindowProperites.hColors.keyWordColor = settings.value("KeyWordColor",
+    m_codeStyle.hColors.gColor = settings.value("GColor", 0x1600ee).toInt();
+    m_codeStyle.hColors.mColor = settings.value("MColor", 0x80007d).toInt();
+    m_codeStyle.hColors.nColor = settings.value("NColor", 0x808080).toInt();
+    m_codeStyle.hColors.lColor = settings.value("LColor", 0x535b5f).toInt();
+    m_codeStyle.hColors.fsColor = settings.value("FsColor", 0x516600).toInt();
+    m_codeStyle.hColors.dhtColor = settings.value("DhtColor", 0x660033).toInt();
+    m_codeStyle.hColors.rColor = settings.value("RColor", 0x24576f).toInt();
+    m_codeStyle.hColors.macroColor = settings.value("MacroColor", 0x000080).toInt();
+    m_codeStyle.hColors.keyWordColor = settings.value("KeyWordColor",
             0x1d8000).toInt();
-    defaultMdiWindowProperites.hColors.progNameColor = settings.value("ProgNameColor",
+    m_codeStyle.hColors.progNameColor = settings.value("ProgNameColor",
             0x000000).toInt();
-    defaultMdiWindowProperites.hColors.operatorColor = settings.value("OperatorColor",
+    m_codeStyle.hColors.operatorColor = settings.value("OperatorColor",
             0x9a2200).toInt();
-    defaultMdiWindowProperites.hColors.zColor = settings.value("ZColor", 0x000080).toInt();
-    defaultMdiWindowProperites.hColors.aColor = settings.value("AColor", 0x000000).toInt();
-    defaultMdiWindowProperites.hColors.bColor = settings.value("BColor", 0x000000).toInt();
-    defaultMdiWindowProperites.hColors.defaultColor = settings.value("DefaultColor",
+    m_codeStyle.hColors.zColor = settings.value("ZColor", 0x000080).toInt();
+    m_codeStyle.hColors.aColor = settings.value("AColor", 0x000000).toInt();
+    m_codeStyle.hColors.bColor = settings.value("BColor", 0x000000).toInt();
+    m_codeStyle.hColors.defaultColor = settings.value("DefaultColor",
             0x000000).toInt();
-    defaultMdiWindowProperites.hColors.backgroundColor = settings.value("BackgroundColor",
+    m_codeStyle.hColors.backgroundColor = settings.value("BackgroundColor",
             0xFFFFFF).toInt();
     settings.endGroup();
 
     m_sessionManager->load(&settings);
 
-    if (!defaultMdiWindowProperites.startEmpty) {
+    if (!m_startEmpty) {
         openFilesFromSession();
     }
 
@@ -1985,22 +2000,21 @@ void EdytorNc::writeSettings()
     settings.setValue("DefaultSaveExtension", defaultMdiWindowProperites.saveExtension);
     settings.setValue("DefaultSaveDirectory", defaultMdiWindowProperites.saveDirectory);
 
-    settings.setValue("FontName", defaultMdiWindowProperites.fontName);
-    settings.setValue("FontSize", defaultMdiWindowProperites.fontSize);
+    settings.setValue("FontName", m_codeStyle.fontName);
+    settings.setValue("FontSize", m_codeStyle.fontSize);
     settings.setValue("IntCapsLock", defaultMdiWindowProperites.intCapsLock);
     settings.setValue("UnderlineChanges", defaultMdiWindowProperites.underlineChanges);
     settings.setValue("WindowMode", defaultMdiWindowProperites.windowMode);
-    settings.setValue("LineColor", defaultMdiWindowProperites.lineColor);
-    settings.setValue("UnderlineColor", defaultMdiWindowProperites.underlineColor);
-    settings.setValue("CalcBinary", defaultMdiWindowProperites.calcBinary);
+    settings.setValue("LineColor", m_codeStyle.lineColor);
+    settings.setValue("UnderlineColor", m_codeStyle.underlineColor);
+    settings.setValue("CalcBinary", m_calcBinary);
     settings.setValue("ClearUndoRedo", defaultMdiWindowProperites.clearUndoHistory);
     settings.setValue("ClearUnderline", defaultMdiWindowProperites.clearUnderlineHistory);
     settings.setValue("EditorToolTips", defaultMdiWindowProperites.editorToolTips);
-    settings.setValue("ViewerMode", defaultMdiWindowProperites.defaultReadOnly);
+    settings.setValue("ViewerMode", m_defaultReadOnly);
     settings.setValue("DefaultHighlightMode", defaultMdiWindowProperites.defaultHighlightMode);
-    settings.setValue("StartEmpty", defaultMdiWindowProperites.startEmpty);
-    settings.setValue("DisableFileChangeMonitor",
-                      defaultMdiWindowProperites.disableFileChangeMonitor);
+    settings.setValue("StartEmpty", m_startEmpty);
+    settings.setValue("DisableFileChangeMonitor", m_disableFileChangeMonitor);
 
     settings.setValue("GuessFileNameByProgNum", defaultMdiWindowProperites.guessFileNameByProgNum);
     settings.setValue("ChangeDateInComment", defaultMdiWindowProperites.changeDateInComment);
@@ -2036,30 +2050,30 @@ void EdytorNc::writeSettings()
     settings.beginGroup("Highlight");
     settings.setValue("HighlightOn", defaultMdiWindowProperites.syntaxH);
 
-    settings.setValue("CommentColor", defaultMdiWindowProperites.hColors.commentColor);
-    settings.setValue("GColor", defaultMdiWindowProperites.hColors.gColor);
-    settings.setValue("MColor", defaultMdiWindowProperites.hColors.mColor);
-    settings.setValue("NColor", defaultMdiWindowProperites.hColors.nColor);
-    settings.setValue("LColor", defaultMdiWindowProperites.hColors.lColor);
-    settings.setValue("FsColor", defaultMdiWindowProperites.hColors.fsColor);
-    settings.setValue("DhtColor", defaultMdiWindowProperites.hColors.dhtColor);
-    settings.setValue("RColor", defaultMdiWindowProperites.hColors.rColor);
-    settings.setValue("MacroColor", defaultMdiWindowProperites.hColors.macroColor);
-    settings.setValue("KeyWordColor", defaultMdiWindowProperites.hColors.keyWordColor);
-    settings.setValue("ProgNameColor", defaultMdiWindowProperites.hColors.progNameColor);
-    settings.setValue("OperatorColor", defaultMdiWindowProperites.hColors.operatorColor);
-    settings.setValue("BColor", defaultMdiWindowProperites.hColors.bColor);
-    settings.setValue("AColor", defaultMdiWindowProperites.hColors.aColor);
-    settings.setValue("ZColor", defaultMdiWindowProperites.hColors.zColor);
-    settings.setValue("DefaultColor", defaultMdiWindowProperites.hColors.defaultColor);
-    settings.setValue("BackgroundColor", defaultMdiWindowProperites.hColors.backgroundColor);
+    settings.setValue("CommentColor", m_codeStyle.hColors.commentColor);
+    settings.setValue("GColor", m_codeStyle.hColors.gColor);
+    settings.setValue("MColor", m_codeStyle.hColors.mColor);
+    settings.setValue("NColor", m_codeStyle.hColors.nColor);
+    settings.setValue("LColor", m_codeStyle.hColors.lColor);
+    settings.setValue("FsColor", m_codeStyle.hColors.fsColor);
+    settings.setValue("DhtColor", m_codeStyle.hColors.dhtColor);
+    settings.setValue("RColor", m_codeStyle.hColors.rColor);
+    settings.setValue("MacroColor", m_codeStyle.hColors.macroColor);
+    settings.setValue("KeyWordColor", m_codeStyle.hColors.keyWordColor);
+    settings.setValue("ProgNameColor", m_codeStyle.hColors.progNameColor);
+    settings.setValue("OperatorColor", m_codeStyle.hColors.operatorColor);
+    settings.setValue("BColor", m_codeStyle.hColors.bColor);
+    settings.setValue("AColor", m_codeStyle.hColors.aColor);
+    settings.setValue("ZColor", m_codeStyle.hColors.zColor);
+    settings.setValue("DefaultColor", m_codeStyle.hColors.defaultColor);
+    settings.setValue("BackgroundColor", m_codeStyle.hColors.backgroundColor);
 
     settings.endGroup();
 
     //cleanup old settings
     settings.remove("LastDoc");
 
-    if (!defaultMdiWindowProperites.startEmpty) {
+    if (!m_startEmpty) {
         storeFileInfoInSession();
     }
 }
@@ -3519,7 +3533,7 @@ void EdytorNc::receiveButtonClicked()
 
                     activeWindow->setHighligthMode(MODE_AUTO);
 
-                    if (defaultMdiWindowProperites.defaultReadOnly) {
+                    if (m_defaultReadOnly) {
                         activeWindow->textEdit()->isReadOnly();
                     }
 

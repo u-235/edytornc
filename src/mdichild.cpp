@@ -66,13 +66,14 @@
 #include <QToolTip>
 
 #include <addons-actions.h>
-#include <commoninc.h>         // _editor_properites
+#include <commoninc.h>
 #include <edytornc.h>
 #include <utils/expressionparser.h>
 #include <utils/removezeros.h>      // Utils::removeZeros()
 
 #include "gcoderinfo.h"        // GCoderInfo
 #include "highlighter.h"       // Highlighter
+#include "highlightmode.h"
 #include "mdichild.h"          // MdiChild QObject QWidget
 #include "ui_mdichildform.h"
 
@@ -481,25 +482,37 @@ void MdiChild::setDocumentInfo(const GCoderInfo &info)
     }
 }
 
-_editor_properites MdiChild::getMdiWindowProperites()
+GCoderStyle MdiChild::codeStyle() const
+{
+    return m_codeStyle;
+}
+
+void MdiChild::setCodeStyle(const GCoderStyle &style)
+{
+    m_codeStyle = style;
+    QFont font = QFont(m_codeStyle.fontName, m_codeStyle.fontSize, QFont::Normal);
+    ui->textEdit->document()->setDefaultFont(font);
+
+    QPalette pal;
+
+    if (m_codeStyle.hColors.backgroundColor != 0xFFFFFF) {
+        pal.setColor(QPalette::Base, QColor(m_codeStyle.hColors.backgroundColor));
+    }
+
+    pal.setColor(QPalette::Text, QColor(m_codeStyle.hColors.defaultColor));
+    setPalette(pal);
+    detectHighligthMode();
+    highlightCurrentLine();
+}
+
+GCoderWidgetProperties MdiChild::getMdiWindowProperites()
 {
     return (mdiWindowProperites);
 }
 
-void MdiChild::setMdiWindowProperites(_editor_properites opt)
+void MdiChild::setMdiWindowProperites(GCoderWidgetProperties opt)
 {
     mdiWindowProperites = opt;
-    setFont(QFont(mdiWindowProperites.fontName, mdiWindowProperites.fontSize, QFont::Normal));
-
-    QPalette pal;
-
-    if (mdiWindowProperites.hColors.backgroundColor != 0xFFFFFF) {
-        pal.setColor(QPalette::Base, QColor(mdiWindowProperites.hColors.backgroundColor));
-    }
-
-    pal.setColor(QPalette::Text, QColor(mdiWindowProperites.hColors.defaultColor));
-
-    setPalette(pal);
 
     if (mdiWindowProperites.syntaxH) {
         if (highlighter == nullptr) {
@@ -631,7 +644,7 @@ bool MdiChild::eventFilter(QObject *obj, QEvent *ev)
                     QTextCursor cr = ui->textEdit->textCursor(); //Underline changes
                     QTextCharFormat format = cr.charFormat();
                     format.setUnderlineStyle(QTextCharFormat::DotLine);
-                    format.setUnderlineColor(QColor(mdiWindowProperites.underlineColor));
+                    format.setUnderlineColor(QColor(m_codeStyle.underlineColor));
                     cr.setCharFormat(format);
                     ui->textEdit->setTextCursor(cr);
                 }
@@ -869,14 +882,14 @@ void MdiChild::highlightCurrentLine()
     ui->textEdit->setExtraSelections(tmpSelections);
 
     if (!ui->textEdit->isReadOnly()) {
-        selection.format.setBackground(QColor(mdiWindowProperites.lineColor));
+        selection.format.setBackground(QColor(m_codeStyle.lineColor));
         selection.format.setProperty(QTextFormat::FullWidthSelection, true);
         selection.cursor = ui->textEdit->textCursor();
         selection.cursor.clearSelection();
         extraSelections.append(selection);
     }
 
-    QColor lineColor = QColor(mdiWindowProperites.lineColor).darker(108);
+    QColor lineColor = QColor(m_codeStyle.lineColor).darker(108);
     selection.format.setBackground(lineColor);
 
     QTextDocument *doc = ui->textEdit->document();
@@ -1275,8 +1288,7 @@ void MdiChild::detectHighligthMode()
     }
 
     highlighter->setHighlightMode(m_highlightMode);
-    highlighter->setHColors(mdiWindowProperites.hColors, QFont(mdiWindowProperites.fontName,
-                            mdiWindowProperites.fontSize, QFont::Normal));
+    highlighter->setHColors(m_codeStyle.hColors, QFont(m_codeStyle.fontName, m_codeStyle.fontSize, QFont::Normal));
     highlighter->rehighlight();
 
     ui->textEdit->document()->setModified(mod);
@@ -1754,7 +1766,7 @@ bool MdiChild::replaceNext(QString textToFind, QString replacedText,
         if (mdiWindowProperites.underlineChanges) {
             QTextCharFormat format = cr.charFormat();
             format.setUnderlineStyle(QTextCharFormat::DotLine);
-            format.setUnderlineColor(QColor(mdiWindowProperites.underlineColor));
+            format.setUnderlineColor(QColor(m_codeStyle.underlineColor));
             cr.setCharFormat(format);
         }
 
