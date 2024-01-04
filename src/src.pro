@@ -43,6 +43,7 @@ SOURCES += \
     edytornc.cpp \
     findinf.cpp \
     gcoderinfo.cpp \
+    gcoderstyle.cpp \
     highlighter.cpp \
     main.cpp \
     mdichild.cpp \

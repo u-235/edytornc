@@ -23,6 +23,8 @@
 
 #include <QString>
 
+class QSettings;
+
 
 struct HighlightColors {
     int commentColor;
@@ -51,6 +53,13 @@ struct GCoderStyle {
     int lineColor;
     int underlineColor;
     HighlightColors hColors;
+
+    GCoderStyle();
+    ~GCoderStyle();
+    void load(QSettings *cfg);
+    void save(QSettings *cfg) const;
+    // Import from old settings
+    void importFromV0(QSettings *cfg);
 };
 
 #endif // GCODERSTYLE_H

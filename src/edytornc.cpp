@@ -162,6 +162,7 @@ EdytorNc::EdytorNc(Medium *medium)
     connect(m_recentFiles, SIGNAL(fileListChanged(QStringList)), this, SLOT(updateRecentFilesMenu(QStringList)));
     connect(m_recentFiles, SIGNAL(saveRequest()), this, SLOT(recentFilesChanged()));
 
+    m_codeStyle = GCoderStyle();
     m_addonsActions = new Addons::Actions(this);
     createActions();
     createMenus();
@@ -811,8 +812,10 @@ void EdytorNc::config()
 
     if (setUpDialog->exec() == QDialog::Accepted) {
         config = setUpDialog->getSettings();
+        QSettings *cfg = Medium::instance().settings();
         defaultMdiWindowProperites = config.editorProperties;
         m_codeStyle = config.codeStyle;
+        m_codeStyle.save(cfg);
         m_calcBinary = config.calcBinary;
         m_defaultReadOnly = config.defaultReadOnly;
         m_disableFileChangeMonitor = config.disableFileChangeMonitor;
@@ -1886,8 +1889,6 @@ void EdytorNc::readSettings()
     defaultMdiWindowProperites.saveDirectory = settings.value("DefaultSaveDirectory",
             QDir::homePath()).toString();
 
-    m_codeStyle.fontName = settings.value("FontName", "Courier").toString();
-    m_codeStyle.fontSize = settings.value("FontSize", 12).toInt();
     defaultMdiWindowProperites.intCapsLock = settings.value("IntCapsLock", true).toBool();
     defaultMdiWindowProperites.underlineChanges = settings.value("UnderlineChanges", true).toBool();
     defaultMdiWindowProperites.windowMode = settings.value("WindowMode", 0x0E).toInt();
@@ -1896,10 +1897,6 @@ void EdytorNc::readSettings()
             false).toBool();
     defaultMdiWindowProperites.editorToolTips = settings.value("EditorToolTips", true).toBool();
     m_startEmpty = settings.value("StartEmpty", false).toBool();
-
-    m_codeStyle.lineColor = settings.value("LineColor", 0xFEFFB6).toInt();
-    m_codeStyle.underlineColor = settings.value("UnderlineColor", 0x00FF00).toInt();
-
     m_defaultReadOnly = settings.value("ViewerMode", false).toBool();
     defaultMdiWindowProperites.defaultHighlightMode = settings.value("DefaultHighlightMode",
             MODE_AUTO).toInt();
@@ -1925,34 +1922,9 @@ void EdytorNc::readSettings()
 
     //defaultMdiWindowProperites.maximized = settings.value("MaximizedMdi", true).toBool();
 
-    settings.beginGroup("Highlight");
     defaultMdiWindowProperites.syntaxH = settings.value("HighlightOn", true).toBool();
-
-    m_codeStyle.hColors.commentColor = settings.value("CommentColor",
-            0xde0020).toInt();
-    m_codeStyle.hColors.gColor = settings.value("GColor", 0x1600ee).toInt();
-    m_codeStyle.hColors.mColor = settings.value("MColor", 0x80007d).toInt();
-    m_codeStyle.hColors.nColor = settings.value("NColor", 0x808080).toInt();
-    m_codeStyle.hColors.lColor = settings.value("LColor", 0x535b5f).toInt();
-    m_codeStyle.hColors.fsColor = settings.value("FsColor", 0x516600).toInt();
-    m_codeStyle.hColors.dhtColor = settings.value("DhtColor", 0x660033).toInt();
-    m_codeStyle.hColors.rColor = settings.value("RColor", 0x24576f).toInt();
-    m_codeStyle.hColors.macroColor = settings.value("MacroColor", 0x000080).toInt();
-    m_codeStyle.hColors.keyWordColor = settings.value("KeyWordColor",
-            0x1d8000).toInt();
-    m_codeStyle.hColors.progNameColor = settings.value("ProgNameColor",
-            0x000000).toInt();
-    m_codeStyle.hColors.operatorColor = settings.value("OperatorColor",
-            0x9a2200).toInt();
-    m_codeStyle.hColors.zColor = settings.value("ZColor", 0x000080).toInt();
-    m_codeStyle.hColors.aColor = settings.value("AColor", 0x000000).toInt();
-    m_codeStyle.hColors.bColor = settings.value("BColor", 0x000000).toInt();
-    m_codeStyle.hColors.defaultColor = settings.value("DefaultColor",
-            0x000000).toInt();
-    m_codeStyle.hColors.backgroundColor = settings.value("BackgroundColor",
-            0xFFFFFF).toInt();
-    settings.endGroup();
-
+    m_codeStyle.load(&settings);
+    
     m_sessionManager->load(&settings);
 
     if (!m_startEmpty) {
@@ -2000,13 +1972,9 @@ void EdytorNc::writeSettings()
     settings.setValue("DefaultSaveExtension", defaultMdiWindowProperites.saveExtension);
     settings.setValue("DefaultSaveDirectory", defaultMdiWindowProperites.saveDirectory);
 
-    settings.setValue("FontName", m_codeStyle.fontName);
-    settings.setValue("FontSize", m_codeStyle.fontSize);
     settings.setValue("IntCapsLock", defaultMdiWindowProperites.intCapsLock);
     settings.setValue("UnderlineChanges", defaultMdiWindowProperites.underlineChanges);
     settings.setValue("WindowMode", defaultMdiWindowProperites.windowMode);
-    settings.setValue("LineColor", m_codeStyle.lineColor);
-    settings.setValue("UnderlineColor", m_codeStyle.underlineColor);
     settings.setValue("CalcBinary", m_calcBinary);
     settings.setValue("ClearUndoRedo", defaultMdiWindowProperites.clearUndoHistory);
     settings.setValue("ClearUnderline", defaultMdiWindowProperites.clearUnderlineHistory);
@@ -2047,28 +2015,7 @@ void EdytorNc::writeSettings()
 
     settings.setValue("FindToolBarShown", !findToolBar.isNull());
 
-    settings.beginGroup("Highlight");
     settings.setValue("HighlightOn", defaultMdiWindowProperites.syntaxH);
-
-    settings.setValue("CommentColor", m_codeStyle.hColors.commentColor);
-    settings.setValue("GColor", m_codeStyle.hColors.gColor);
-    settings.setValue("MColor", m_codeStyle.hColors.mColor);
-    settings.setValue("NColor", m_codeStyle.hColors.nColor);
-    settings.setValue("LColor", m_codeStyle.hColors.lColor);
-    settings.setValue("FsColor", m_codeStyle.hColors.fsColor);
-    settings.setValue("DhtColor", m_codeStyle.hColors.dhtColor);
-    settings.setValue("RColor", m_codeStyle.hColors.rColor);
-    settings.setValue("MacroColor", m_codeStyle.hColors.macroColor);
-    settings.setValue("KeyWordColor", m_codeStyle.hColors.keyWordColor);
-    settings.setValue("ProgNameColor", m_codeStyle.hColors.progNameColor);
-    settings.setValue("OperatorColor", m_codeStyle.hColors.operatorColor);
-    settings.setValue("BColor", m_codeStyle.hColors.bColor);
-    settings.setValue("AColor", m_codeStyle.hColors.aColor);
-    settings.setValue("ZColor", m_codeStyle.hColors.zColor);
-    settings.setValue("DefaultColor", m_codeStyle.hColors.defaultColor);
-    settings.setValue("BackgroundColor", m_codeStyle.hColors.backgroundColor);
-
-    settings.endGroup();
 
     //cleanup old settings
     settings.remove("LastDoc");
