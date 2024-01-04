@@ -24,6 +24,8 @@
 #include <QString>
 #include <QStringList>
 
+class QSettings;
+
 
 enum WindowModeFlags {
     TABBED_MODE = 0x01,
@@ -48,6 +50,11 @@ struct GCoderWidgetProperties {
     int defaultHighlightMode;
     bool guessFileNameByProgNum;
     bool changeDateInComment;
+
+    GCoderWidgetProperties();
+    ~GCoderWidgetProperties();
+    void load(QSettings *cfg);
+    void save(QSettings *cfg) const;
 };
 
 #endif // GCODERWIDGETPROPERTIES_H

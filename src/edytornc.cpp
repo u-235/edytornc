@@ -162,6 +162,7 @@ EdytorNc::EdytorNc(Medium *medium)
     connect(m_recentFiles, SIGNAL(fileListChanged(QStringList)), this, SLOT(updateRecentFilesMenu(QStringList)));
     connect(m_recentFiles, SIGNAL(saveRequest()), this, SLOT(recentFilesChanged()));
 
+    defaultMdiWindowProperites = GCoderWidgetProperties();
     m_codeStyle = GCoderStyle();
     m_addonsActions = new Addons::Actions(this);
     createActions();
@@ -814,6 +815,7 @@ void EdytorNc::config()
         config = setUpDialog->getSettings();
         QSettings *cfg = Medium::instance().settings();
         defaultMdiWindowProperites = config.editorProperties;
+        defaultMdiWindowProperites.save(cfg);
         m_codeStyle = config.codeStyle;
         m_codeStyle.save(cfg);
         m_calcBinary = config.calcBinary;
@@ -1881,30 +1883,8 @@ void EdytorNc::readSettings()
     }
 
     QDir::setCurrent(settings.value("LastDir",  QDir::homePath()).toString());
-
-    defaultMdiWindowProperites.extensions = settings.value("Extensions",
-                                            (QStringList() << "*.nc" <<  "*.cnc")).toStringList();
-    defaultMdiWindowProperites.saveExtension = settings.value("DefaultSaveExtension",
-            "*.nc").toString();
-    defaultMdiWindowProperites.saveDirectory = settings.value("DefaultSaveDirectory",
-            QDir::homePath()).toString();
-
-    defaultMdiWindowProperites.intCapsLock = settings.value("IntCapsLock", true).toBool();
-    defaultMdiWindowProperites.underlineChanges = settings.value("UnderlineChanges", true).toBool();
-    defaultMdiWindowProperites.windowMode = settings.value("WindowMode", 0x0E).toInt();
-    defaultMdiWindowProperites.clearUndoHistory = settings.value("ClearUndoRedo", false).toBool();
-    defaultMdiWindowProperites.clearUnderlineHistory = settings.value("ClearUnderline",
-            false).toBool();
-    defaultMdiWindowProperites.editorToolTips = settings.value("EditorToolTips", true).toBool();
     m_startEmpty = settings.value("StartEmpty", false).toBool();
     m_defaultReadOnly = settings.value("ViewerMode", false).toBool();
-    defaultMdiWindowProperites.defaultHighlightMode = settings.value("DefaultHighlightMode",
-            MODE_AUTO).toInt();
-
-    defaultMdiWindowProperites.guessFileNameByProgNum = settings.value("GuessFileNameByProgNum",
-            true).toBool();
-    defaultMdiWindowProperites.changeDateInComment = settings.value("ChangeDateInComment",
-            false).toBool();
 
     fileDialogState = settings.value("FileDialogState", QByteArray()).toByteArray();
 
@@ -1919,12 +1899,8 @@ void EdytorNc::readSettings()
     m_calcBinary = settings.value("CalcBinary", m_calcBinary).toString();
 
     m_recentFiles->load(&settings);
-
-    //defaultMdiWindowProperites.maximized = settings.value("MaximizedMdi", true).toBool();
-
-    defaultMdiWindowProperites.syntaxH = settings.value("HighlightOn", true).toBool();
+    defaultMdiWindowProperites.load(&settings);
     m_codeStyle.load(&settings);
-    
     m_sessionManager->load(&settings);
 
     if (!m_startEmpty) {
@@ -1967,26 +1943,10 @@ void EdytorNc::writeSettings()
     settings.endGroup();
 
     settings.setValue("LastDir", QDir::currentPath());
-
-    settings.setValue("Extensions", defaultMdiWindowProperites.extensions);
-    settings.setValue("DefaultSaveExtension", defaultMdiWindowProperites.saveExtension);
-    settings.setValue("DefaultSaveDirectory", defaultMdiWindowProperites.saveDirectory);
-
-    settings.setValue("IntCapsLock", defaultMdiWindowProperites.intCapsLock);
-    settings.setValue("UnderlineChanges", defaultMdiWindowProperites.underlineChanges);
-    settings.setValue("WindowMode", defaultMdiWindowProperites.windowMode);
     settings.setValue("CalcBinary", m_calcBinary);
-    settings.setValue("ClearUndoRedo", defaultMdiWindowProperites.clearUndoHistory);
-    settings.setValue("ClearUnderline", defaultMdiWindowProperites.clearUnderlineHistory);
-    settings.setValue("EditorToolTips", defaultMdiWindowProperites.editorToolTips);
     settings.setValue("ViewerMode", m_defaultReadOnly);
-    settings.setValue("DefaultHighlightMode", defaultMdiWindowProperites.defaultHighlightMode);
     settings.setValue("StartEmpty", m_startEmpty);
     settings.setValue("DisableFileChangeMonitor", m_disableFileChangeMonitor);
-
-    settings.setValue("GuessFileNameByProgNum", defaultMdiWindowProperites.guessFileNameByProgNum);
-    settings.setValue("ChangeDateInComment", defaultMdiWindowProperites.changeDateInComment);
-
     settings.setValue("FileDialogState", fileDialogState);
 
     settings.setValue("SerialToolbarShown", (!serialToolBar.isNull()));
@@ -2014,8 +1974,6 @@ void EdytorNc::writeSettings()
     settings.setValue("FileBrowserShowCurrentFileDir", ui->currentPathCheckBox->isChecked());
 
     settings.setValue("FindToolBarShown", !findToolBar.isNull());
-
-    settings.setValue("HighlightOn", defaultMdiWindowProperites.syntaxH);
 
     //cleanup old settings
     settings.remove("LastDoc");

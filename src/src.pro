@@ -44,6 +44,7 @@ SOURCES += \
     findinf.cpp \
     gcoderinfo.cpp \
     gcoderstyle.cpp \
+    gcoderwidgetproperties.cpp \
     highlighter.cpp \
     main.cpp \
     mdichild.cpp \
