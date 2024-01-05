@@ -364,13 +364,14 @@ void EdytorNc::open(const QDir &dir)
                             filters, 0);
 
     for (const QString &fileName : files) {
+        setLastOpenedPath(QFileInfo(fileName).path());
         openFile(fileName);
     }
 }
 
 void EdytorNc::open()
 {
-    open(QDir::currentPath());
+    open(workPath());
     statusBar()->showMessage(tr("File loaded"), 5000);
 }
 
@@ -907,7 +908,7 @@ void EdytorNc::doDiffL()
         }
 
         if (fileName.isEmpty()) {
-            fileName = QDir::currentPath();
+            fileName = lastOpenedPath();
         }
 
         //        diffApp->close();
@@ -937,7 +938,7 @@ void EdytorNc::doDiffR()
         }
 
         if (fileName.isEmpty()) {
-            fileName = QDir::currentPath();
+            fileName = lastOpenedPath();
         }
 
         //        diffApp->close();
@@ -1036,7 +1037,7 @@ void EdytorNc::doDiff()
         }
 
         if (fileName.isEmpty()) {
-            fileName = QDir::currentPath();
+            fileName = lastOpenedPath();
         }
 
         //        diffApp->close();
@@ -1359,7 +1360,7 @@ MdiChild *EdytorNc::createMdiChild()
     connect(child, SIGNAL(addRemoveFileWatch(const QString &, bool)), this,
             SLOT(watchFile(const QString &, bool)));
 
-    defaultMdiWindowProperites.lastDir = QDir::currentPath();
+    defaultMdiWindowProperites.lastDir = lastOpenedPath();
     child->setMdiWindowProperites(defaultMdiWindowProperites);
     child->setCodeStyle(m_codeStyle);
     child->setHighligthMode(defaultMdiWindowProperites.defaultHighlightMode);
@@ -1882,7 +1883,7 @@ void EdytorNc::readSettings()
                 SLOT(fileChanged(const QString)));
     }
 
-    QDir::setCurrent(settings.value("LastDir",  QDir::homePath()).toString());
+    setLastOpenedPath(settings.value("LastDir",  QDir::homePath()).toString());
     m_startEmpty = settings.value("StartEmpty", false).toBool();
     m_defaultReadOnly = settings.value("ViewerMode", false).toBool();
 
@@ -1942,7 +1943,7 @@ void EdytorNc::writeSettings()
     settings.setValue("state", saveState());
     settings.endGroup();
 
-    settings.setValue("LastDir", QDir::currentPath());
+    settings.setValue("LastDir", lastOpenedPath());
     settings.setValue("CalcBinary", m_calcBinary);
     settings.setValue("ViewerMode", m_defaultReadOnly);
     settings.setValue("StartEmpty", m_startEmpty);
@@ -1983,7 +1984,7 @@ void EdytorNc::writeSettings()
     }
 }
 
-MdiChild *EdytorNc::activeMdiChild()
+MdiChild *EdytorNc::activeMdiChild() const
 {
     if (QMdiSubWindow *activeSubWindow = ui->mdiArea->activeSubWindow()) {
         return qobject_cast<MdiChild *>(activeSubWindow->widget());
@@ -2020,7 +2021,28 @@ void EdytorNc::setActiveSubWindow(QWidget *window)
     ui->mdiArea->setActiveSubWindow(qobject_cast<QMdiSubWindow *>(window));
 }
 
-void EdytorNc::loadFile(const GCoderInfo &info, bool checkAlreadyLoaded)
+QString EdytorNc::workPath() const
+{
+    MdiChild *child = activeMdiChild();
+
+    if (child) {
+        return child->filePath();
+    }
+
+    return QDir::homePath();
+}
+
+QString EdytorNc::lastOpenedPath() const
+{
+    return m_lastOpenedPath;
+}
+
+void EdytorNc::setLastOpenedPath(const QString &path)
+{
+    m_lastOpenedPath = QDir(path).absolutePath();
+}
+
+  void EdytorNc::loadFile(const GCoderInfo &info, bool checkAlreadyLoaded)
 {
     QFileInfo file;
 
@@ -2593,7 +2615,7 @@ void EdytorNc::projectAdd()
     QStringList files = QFileDialog::getOpenFileNames(
                             this,
                             tr("Add files to project"),
-                            QDir::currentPath(),
+                            lastOpenedPath(),
                             filters, 0);
 
     QStringList list = files;
@@ -3111,7 +3133,7 @@ void EdytorNc::fileTreeViewChangeRootDir()
             path = path.remove(QFileInfo(path).fileName());
         }
     } else {
-        path = QDir::currentPath();
+        path = lastOpenedPath();
     }
 
     if (path.isEmpty()) {
