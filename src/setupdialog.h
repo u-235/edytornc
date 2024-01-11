@@ -46,6 +46,7 @@ struct AppConfig  {
     GCoderWidgetProperties editorProperties;
     GCoderStyle codeStyle;
     QString calcBinary;
+    bool mdiTabbedMode;
     bool defaultReadOnly;
     bool startEmpty;
     bool disableFileChangeMonitor;

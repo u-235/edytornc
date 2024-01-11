@@ -181,7 +181,7 @@ EdytorNc::EdytorNc(Medium *medium)
 
     clipboardLoad();
 
-    if (defaultMdiWindowProperites.windowMode & TABBED_MODE) {
+    if (m_mdiTabbedMode) {
         ui->mdiArea->setViewMode(QMdiArea::TabbedView);
         QTabBar *tab = ui->mdiArea->findChild<QTabBar *>();
 
@@ -807,6 +807,7 @@ void EdytorNc::config()
     config.editorProperties = defaultMdiWindowProperites;
     config.codeStyle = m_codeStyle;
     config.calcBinary = m_calcBinary;
+    config.mdiTabbedMode = m_mdiTabbedMode;
     config.defaultReadOnly = m_defaultReadOnly;
     config.disableFileChangeMonitor = m_disableFileChangeMonitor;
     config.startEmpty = m_startEmpty;
@@ -820,11 +821,12 @@ void EdytorNc::config()
         m_codeStyle = config.codeStyle;
         m_codeStyle.save(cfg);
         m_calcBinary = config.calcBinary;
+        m_mdiTabbedMode = config.mdiTabbedMode;
         m_defaultReadOnly = config.defaultReadOnly;
         m_disableFileChangeMonitor = config.disableFileChangeMonitor;
         m_startEmpty = config.startEmpty;
 
-        if (defaultMdiWindowProperites.windowMode & TABBED_MODE) {
+        if (m_mdiTabbedMode) {
             ui->mdiArea->setViewMode(QMdiArea::TabbedView);
             QTabBar *tab = ui->mdiArea->findChild<QTabBar *>();
 
@@ -1886,6 +1888,7 @@ void EdytorNc::readSettings()
     setLastOpenedPath(settings.value("LastDir",  QDir::homePath()).toString());
     m_startEmpty = settings.value("StartEmpty", false).toBool();
     m_defaultReadOnly = settings.value("ViewerMode", false).toBool();
+    m_mdiTabbedMode = settings.value("TabbetMode", false).toBool();
 
     fileDialogState = settings.value("FileDialogState", QByteArray()).toByteArray();
 
@@ -1945,6 +1948,7 @@ void EdytorNc::writeSettings()
 
     settings.setValue("LastDir", lastOpenedPath());
     settings.setValue("CalcBinary", m_calcBinary);
+    settings.setValue("TabbetMode", m_mdiTabbedMode);
     settings.setValue("ViewerMode", m_defaultReadOnly);
     settings.setValue("StartEmpty", m_startEmpty);
     settings.setValue("DisableFileChangeMonitor", m_disableFileChangeMonitor);

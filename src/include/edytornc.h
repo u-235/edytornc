@@ -250,6 +250,7 @@ private:
     GCoderStyle m_codeStyle;
     QString m_calcBinary;
     QString m_lastOpenedPath;
+    bool m_mdiTabbedMode;
     bool m_defaultReadOnly;
     bool m_startEmpty;
     bool m_disableFileChangeMonitor;
