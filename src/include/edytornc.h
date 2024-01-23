@@ -119,6 +119,8 @@ protected:
     bool eventFilter(QObject *obj, QEvent *ev);
     bool event(QEvent *event);
 
+    bool save(MdiChild *child, bool forceSaveAs);
+
 private slots:
     MdiChild *newFileFromTemplate();
     void open(const QDir &dir);

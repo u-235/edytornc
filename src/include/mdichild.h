@@ -61,11 +61,10 @@ public:
     QPlainTextEdit *textEdit();
     void newFile();
     void newFile(const QString &fileName);
-    bool loadFile(const QString &fileName);
+    bool load();
     bool save();
-    bool saveAs();
-    bool saveFile(const QString &fileName);
     QString currentFile();  //filename with full path
+    void setCurrentFile(const QString &file);
     GCoderInfo documentInfo() const;
     void setDocumentInfo(const GCoderInfo &info);
     _editor_properites getMdiWindowProperites();
@@ -83,7 +82,6 @@ public:
     QString currentFileInfo(); // Text from first comment in CNC program
     QString guessFileName();
     bool foundTextMatched(const QString& pattern, QString text);
-    void setCurrentFile(const QString &fileName, const QString &text);
     bool findNext(QString textToFind, QTextDocument::FindFlags options, bool ignoreComments);
     bool replaceNext(QString textToFind, QString replacedText, QTextDocument::FindFlags options,
                      bool ignoreComments);
@@ -95,6 +93,7 @@ public:
     void setModified(bool mod = false);
     bool isReadOnly() const;
     void setReadOnly(bool editable);
+    bool isUntitled() const;
     bool hasSelection();
     bool isUndoAvailable();
     bool isRedoAvailable();
@@ -110,6 +109,9 @@ protected:
     void closeEvent(QCloseEvent *event);
     bool eventFilter(QObject *obj, QEvent *ev);
     bool event(QEvent *event);
+    bool loadFile(const QString &fileName);
+    bool saveFile(const QString &fileName);
+    void updateCurrentFile();
 
 private:
     bool maybeSave();
@@ -126,7 +128,7 @@ private:
     QString saveFileFilter;
     QByteArray saveDialogState;
     void updateWindowTitle();
-    bool isUntitled;
+    bool m_isUntitled;
     Highlighter *highlighter;
     int m_highlightMode;
     _editor_properites mdiWindowProperites;

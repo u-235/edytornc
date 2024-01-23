@@ -388,12 +388,83 @@ void EdytorNc::openFile(const QString &fileName)
     loadFile(info, true);
 }
 
+bool EdytorNc::save(MdiChild *child, bool forceSaveAs)
+{
+    if (child->isUntitled() || forceSaveAs) {
+        QString fileName;
+
+    #ifdef Q_OS_LINUX
+        QString extText = tr("CNC programs files %1 (%1);;");
+    #elif defined Q_OS_WIN32
+        QString extText = tr("CNC programs files (%1);;");
+    #elif defined Q_OS_MACX
+        QString extText = tr("CNC programs files %1 (%1);;");
+    #endif
+
+        QString filters = extText.arg(defaultMdiWindowProperites.saveExtension);
+
+        for (const QString &ext : defaultMdiWindowProperites.extensions) {
+            QString saveExt = extText.arg(ext);
+
+            if (ext != defaultMdiWindowProperites.saveExtension) {
+                filters.append(saveExt);
+            }
+        }
+
+        filters.append(tr("Text files (*.txt);;" "All files (*.* *)"));
+
+        if (child->isUntitled()) {
+            fileName = child->guessFileName();
+        } else {
+            fileName = child->currentFile();
+        }
+
+        if (QFileInfo(fileName).suffix() == "") {
+            // sometimes when file has no extension QFileDialog::getSaveFileName will no apply choosen filter (extension)
+            fileName.append(".nc");
+        }
+
+        QString file = QFileDialog::getSaveFileName(
+                           this,
+                           tr("Save file as..."),
+                           fileName,
+                           filters, nullptr, QFileDialog::DontConfirmOverwrite);
+
+        if (file.isEmpty() || file.isNull()) {
+            return false;
+        }
+
+        if ((QFile(file).exists())) {
+            QMessageBox msgBox;
+            msgBox.setText(tr("<b>File \"%1\" exists.</b>").arg(file));
+            msgBox.setInformativeText(tr("Do you want overwrite it ?"));
+            msgBox.setStandardButtons(QMessageBox::Save | QMessageBox::Discard);
+            msgBox.setDefaultButton(QMessageBox::Discard);
+            msgBox.setIcon(QMessageBox::Warning);
+
+            if (msgBox.exec() != QMessageBox::Save) {
+                return false;
+            }
+        }
+
+        child->setCurrentFile(fileName);
+    }
+
+    return child->save();
+}
+
 void EdytorNc::save()
 {
-    if (activeMdiChild()) {
-        if (activeMdiChild()->save()) {
-            statusBar()->showMessage(tr("File saved"), 5000);
-        }
+    MdiChild *child = activeMdiChild();
+
+    if (!child) {
+        return;
+    }
+
+    if (save(activeMdiChild(), false)) {
+        statusBar()->showMessage(tr("File saved"), 5000);
+    } else {
+        // TODO Print errror
     }
 }
 
@@ -407,14 +478,14 @@ void EdytorNc::saveAll()
 
     foreach (const QMdiSubWindow *window, ui->mdiArea->subWindowList(QMdiArea::StackingOrder)) {
         MdiChild *mdiChild = qobject_cast<MdiChild *>(window->widget());
-        mdiChild->blockSignals(true);
 
         if (mdiChild->isModified()) {
-            mdiChild->save();
-            i++;
+            if (save(mdiChild, false)) {
+                i++;
+            } else {
+                // TODO Print errror
+            }
         }
-
-        mdiChild->blockSignals(false);
     }
 
     if (currentMdiChild != nullptr) {
@@ -428,8 +499,16 @@ void EdytorNc::saveAll()
 
 void EdytorNc::saveAs()
 {
-    if (activeMdiChild() && activeMdiChild()->saveAs()) {
+    MdiChild *child = activeMdiChild();
+
+    if (!child) {
+        return;
+    }
+
+    if (save(activeMdiChild(), true)) {
         statusBar()->showMessage(tr("File saved"), 5000);
+    } else {
+        // TODO Print errror
     }
 }
 
@@ -2048,8 +2127,9 @@ void EdytorNc::loadFile(const GCoderInfo &info, bool checkAlreadyLoaded)
 
     if ((file.exists()) && (file.isReadable())) {
         MdiChild *child = createMdiChild();
+        child->setCurrentFile(info.filePath);
 
-        if (child->loadFile(info.filePath)) {
+        if (child->load()) {
             child->setDocumentInfo(info);
             updateStatusBar();
             m_recentFiles->add(info.filePath);
@@ -3548,7 +3628,7 @@ void EdytorNc::fileChanged(const QString &fileName)
 
     switch (ret) {
     case QMessageBox::Yes:
-        mdiChild->loadFile(fileName);
+        mdiChild->load();
         break;
 
     case QMessageBox::No:

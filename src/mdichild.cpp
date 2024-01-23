@@ -82,7 +82,7 @@ MdiChild::MdiChild(QWidget *parent, Qt::WindowFlags f) : QWidget(parent, f)
     ui = new Ui::MdiChild();
     ui->setupUi(this);
     setAttribute(Qt::WA_DeleteOnClose);
-    isUntitled = true;
+    m_isUntitled = true;
     ui->textEdit->setWordWrapMode(QTextOption::NoWrap);
     ui->textEdit->document()->setDocumentMargin(8);
     highlighter = nullptr;
@@ -123,7 +123,7 @@ void MdiChild::newFile()
 {
     static int sequenceNumber = 1;
 
-    isUntitled = true;
+    m_isUntitled = true;
     curFile = tr("program%1.nc").arg(sequenceNumber++);
     setWindowTitle(curFile + "[*]");
     curFileInfo = curFile;
@@ -134,26 +134,23 @@ void MdiChild::newFile()
 
 void MdiChild::newFile(const QString &fileName)
 {
-    QFile file(fileName);
+    loadFile(fileName);
+    newFile();
+}
 
-    if (file.open(QIODevice::ReadOnly)) {
-        QTextStream in(&file);
-        QApplication::setOverrideCursor(Qt::WaitCursor);
-
-        QString tex = in.readAll();
-        ui->textEdit->setPlainText(tex);
-        file.close();
-        QApplication::restoreOverrideCursor();
-        fileChangeMonitorAddPath(file.fileName());
-
-    } else {
-        QMessageBox::warning(this, tr("EdytorNC"),
-                             tr("Cannot read file \"%1\".\n %2")
-                             .arg(fileName)
-                             .arg(file.errorString()));
+bool MdiChild::load() {
+    if (loadFile(curFile)) {
+        m_isUntitled = false;
+        ui->textEdit->document()->setModified(false);
+        setWindowModified(false);
+        updateCurrentFile();
+        detectHighligthMode();
+        connect(ui->textEdit->document(), SIGNAL(contentsChanged()), this, SLOT(documentWasModified()));
+        fileChangeMonitorAddPath(curFile);
+        return true;
     }
 
-    newFile();
+    return false;
 }
 
 bool MdiChild::loadFile(const QString &fileName)
@@ -167,12 +164,8 @@ bool MdiChild::loadFile(const QString &fileName)
         QString tex = in.readAll();
         ui->textEdit->setPlainText(tex);
         file.close();
-        detectHighligthMode();
-        QApplication::restoreOverrideCursor();
 
-        setCurrentFile(fileName, tex);
-        connect(ui->textEdit->document(), SIGNAL(contentsChanged()), this, SLOT(documentWasModified()));
-        fileChangeMonitorAddPath(fileName);
+        QApplication::restoreOverrideCursor();
         return true;
     } else {
         QMessageBox::warning(this, tr("EdytorNC"),
@@ -189,13 +182,18 @@ bool MdiChild::save()
 
     setFocus();
 
-    if (isUntitled) {
-        result = saveAs();
-    } else {
-        result = saveFile(curFile);
+    if (m_isUntitled) {
+        return false;
     }
 
+    result = saveFile(curFile);
+
     if (result) {
+        m_isUntitled = false;
+        ui->textEdit->document()->setModified(false);
+        setWindowModified(false);
+        updateCurrentFile();
+
         if (mdiWindowProperites.clearUndoHistory) {
             ui->textEdit->setUndoRedoEnabled(false);  //clear undo/redo history
             ui->textEdit->setUndoRedoEnabled(true);
@@ -228,91 +226,15 @@ bool MdiChild::save()
     return result;
 }
 
-bool MdiChild::saveAs()
-{
-    QString fileName, filters, saveExt;
-
-#ifdef Q_OS_LINUX
-    QString extText = tr("CNC programs files %1 (%1);;");
-#elif defined Q_OS_WIN32
-    QString extText = tr("CNC programs files (%1);;");
-#elif defined Q_OS_MACX
-    QString extText = tr("CNC programs files %1 (%1);;");
-#endif
-
-    filters = extText.arg(mdiWindowProperites.saveExtension);
-
-    foreach (const QString ext, mdiWindowProperites.extensions) {
-        saveExt = extText.arg(ext);
-
-        if (ext != mdiWindowProperites.saveExtension) {
-            filters.append(saveExt);
-        }
-    }
-
-    filters.append(tr("Text files (*.txt);;"
-                      "All files (*.* *)"));
-
-    if (isUntitled) {
-        fileName = guessFileName();
-    } else {
-        fileName = curFile;
-    }
-
-    if (QFileInfo(fileName).suffix() ==
-            "") { // sometimes when file has no extension QFileDialog::getSaveFileName will no apply choosen filter (extension)
-        fileName.append(".nc");
-    }
-
-    QString file = QFileDialog::getSaveFileName(
-                       this,
-                       tr("Save file as..."),
-                       fileName,
-                       filters, &saveFileFilter, QFileDialog::DontConfirmOverwrite);
-
-    if (file.isEmpty() || file.isNull()) {
-        return false;
-    }
-
-    if (QFileInfo(file).suffix() == "") {
-    }
-
-    if ((QFile(file).exists())) {
-        QMessageBox msgBox;
-        msgBox.setText(tr("<b>File \"%1\" exists.</b>").arg(file));
-        msgBox.setInformativeText(tr("Do you want overwrite it ?"));
-        msgBox.setStandardButtons(QMessageBox::Save | QMessageBox::Discard);
-        msgBox.setDefaultButton(QMessageBox::Discard);
-        msgBox.setIcon(QMessageBox::Warning);
-        int ret = msgBox.exec();
-
-        switch (ret) {
-        case QMessageBox::Save:
-            break;
-
-        case QMessageBox::Discard:
-            return false;
-            break;
-
-        default:
-            return false;
-            break;
-        }
-    }
-
-    fileChangeMonitorRemovePath(fileName);
-    return saveFile(file);
-}
-
 bool MdiChild::saveFile(const QString &fileName)
 {
-    int curPos;
-    QTextCursor cursor;
+//    int curPos;
+//    QTextCursor cursor;
     QFile file(fileName);
-    fileChangeMonitorRemovePath(file.fileName());
-    curPos = ui->textEdit->textCursor().position();
+//    curPos = ui->textEdit->textCursor().position();
 
     if (file.open(QIODevice::WriteOnly)) {
+        fileChangeMonitorRemovePath(file.fileName());
         QApplication::setOverrideCursor(Qt::WaitCursor);
 
         changeDateInComment();
@@ -329,12 +251,11 @@ bool MdiChild::saveFile(const QString &fileName)
         file.close();
         QApplication::restoreOverrideCursor();
 
-        cursor = ui->textEdit->textCursor();
-        cursor.setPosition(curPos);
-        ui->textEdit->setTextCursor(cursor);
+//        cursor = ui->textEdit->textCursor();
+//        cursor.setPosition(curPos);
+//        ui->textEdit->setTextCursor(cursor);
 
-        setCurrentFile(fileName, tex);
-        fileChangeMonitorAddPath(file.fileName());
+        fileChangeMonitorAddPath(fileName);
         return true;
     } else {
         QMessageBox::warning(this, tr("EdytorNC"),
@@ -452,15 +373,11 @@ bool MdiChild::maybeSave()
     return true;
 }
 
-void MdiChild::setCurrentFile(const QString &fileName, const QString &text)
+void MdiChild::updateCurrentFile()
 {
     QRegularExpression regex;
     QString f_tx;
-
-    curFile = QFileInfo(fileName).canonicalFilePath();
-    isUntitled = false;
-    ui->textEdit->document()->setModified(false);
-    setWindowModified(false);
+    QString text = ui->textEdit->toPlainText();
 
     regex.setPattern("\\([^\\n\\r]*\\)|;[^\\n\\r]*"); //find first comment and set it in window tilte
     auto match = regex.match(text);
@@ -1979,6 +1896,11 @@ void MdiChild::setReadOnly(bool editable)
     ui->textEdit->setReadOnly(editable);
 }
 
+bool MdiChild::isUntitled() const
+{
+    return m_isUntitled;
+}
+
 bool MdiChild::hasSelection()
 {
     return ui->textEdit->textCursor().hasSelection();
@@ -2042,13 +1964,20 @@ QString MdiChild::currentFile()
 {
     QString path = curFile;
 
-    if (isUntitled) {
+    if (m_isUntitled) {
         path = mdiWindowProperites.lastDir + "/" + path;
     }
 
     path = QDir::cleanPath(path);
 
     return QDir::toNativeSeparators(path);
+}
+
+void MdiChild::setCurrentFile(const QString& file)
+{
+    fileChangeMonitorRemovePath(curFile);
+    curFile = QFileInfo(file).canonicalFilePath();
+    fileChangeMonitorAddPath(curFile);
 }
 
 //void MdiChild::setFileChangeMonitor(QFileSystemWatcher *monitor)
